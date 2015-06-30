@@ -1,19 +1,16 @@
 from crypto.aes import AESdecryptCBC
 from crypto.aes import AESencryptCBC
 from crypto.aeswrap import aes_unwrap_key
-from crypto.aeswrap import aes_wrap_key
-from crypto.curve25519 import curve25519
 import hmac
 from crypto.pbkdf2 import pbkdf2
 import hashlib
-import array
+
 sha256 = hashlib.sha256
 sha1 = hashlib.sha1
 
 import sys
 import struct
 import uuid
-import getopt
 from binascii import hexlify, unhexlify
 
 KEYBAG_DATA = '>4sI'
@@ -35,6 +32,7 @@ def tlvs(data):
             break
         yield type, value
         data = data[8+length:]
+
 
 # 'kc_parse_keyclass' in binary named 'secd'
 def get_class_name(classnum):
@@ -65,6 +63,7 @@ def get_class_name(classnum):
     else:
         return 'unknown'
 
+
 def get_key_type(keytypenum):
     if keytypenum == 0:
         return 'AES with GCM'
@@ -73,6 +72,7 @@ def get_key_type(keytypenum):
     else:
         return 'unknown'
 
+
 def get_wrap_name(wrapnum):
     if wrapnum == 1:
         return 'AES encrypted with device key'
@@ -80,6 +80,7 @@ def get_wrap_name(wrapnum):
         return 'Wrapped key after AES encrypted with device key'
     else:
         return 'unknown'
+
 
 class Keybag():
     def __init__(self, filepath):
@@ -117,7 +118,7 @@ class Keybag():
             #if type == 'UUID':
                 #print '%s : %s'%(type, uuid.UUID(bytes=data) )
             if type == 'CLAS':
-                print ' [-] %s : %s'%(type, get_class_name(int(hexlify(data), 16) ))
+                #print ' [-] %s : %s'%(type, get_class_name(int(hexlify(data), 16) ))
                 dict['CLAS'] = int(hexlify(data), 16)
             elif type == 'WRAP':
                 #print '%s : %s'%(type, get_wrap_name(int(hexlify(data), 16) ))
@@ -129,7 +130,7 @@ class Keybag():
                 
                 if dict['WRAP'] == 1:
                     decryptedkey = AESdecryptCBC(data, self.devicekey)
-                    print ' [-] Decrypted Key : %s'%hexlify(decryptedkey)
+                    #print ' [-] Decrypted Key : %s'%hexlify(decryptedkey)
                 elif dict['WRAP'] == 3:
                     try:
                         unwrapped = aes_unwrap_key(self.passcodekey, data)
@@ -138,7 +139,7 @@ class Keybag():
                         sys.exit()
                     #print unwrapped
                     decryptedkey = AESdecryptCBC(unwrapped, self.devicekey)
-                    print ' [-] Decrypted Key : %s'%hexlify(decryptedkey)
+                    #print ' [-] Decrypted Key : %s'%hexlify(decryptedkey)
 
                 self.keyring[dict['CLAS']] = decryptedkey  # Key
 
@@ -149,7 +150,6 @@ class Keybag():
         except:
             key = ''
         return key
-
 
     def load_keybag_header(self):
         data_header = struct.unpack(KEYBAG_DATA, self.fbuf[:KEYBAG_DATA_SIZE])
@@ -184,9 +184,6 @@ class Keybag():
         if keybag_header[18] == 'ITER':
             self.keybag['iter'] = keybag_header[20]
 
-
-
-        #print 'len : %d'%(len(self.fbuf)-(self.sign_offset))
         sign = struct.unpack(KEYBAG_SIGN, self.fbuf[self.sign_offset:])
         self.keybag['sign'] = hexlify(sign[2])
 
@@ -271,8 +268,6 @@ class Keybag():
     # tangle with hardware
     def tangle_with_hardware(self, PRFKey, PRFKeyLen, itercount):
         DERIVATION_BUFFER_SIZE = 4096
-        encrypted_buf = ''
-        filled_buf = ''
         nBlock = DERIVATION_BUFFER_SIZE / PRFKeyLen    # 4096 / 32 = 128
         xorkey = 1
         passcodePRFKey = PRFKey
@@ -281,7 +276,7 @@ class Keybag():
             newxorkey, filled_buf = self.fill_buffer(DERIVATION_BUFFER_SIZE, PRFKey, PRFKeyLen, xorkey)
             xorkey = newxorkey
 
-            encrypted_buf = self.hw_crypt_aligned(1, 0, filled_buf, DERIVATION_BUFFER_SIZE, 2);
+            encrypted_buf = self.hw_crypt_aligned(1, 0, filled_buf, DERIVATION_BUFFER_SIZE, 2)
 
             Count = nBlock
             if Count >= itercount:
@@ -290,8 +285,6 @@ class Keybag():
             
             itercount -= Count
         return passcodePRFKey
-
-
 
     # 16bit input -> 32bit output
     # Code : AppleKeyStore.kext -> AppleKeyStore::device_key_init()
@@ -302,34 +295,19 @@ class Keybag():
 
     def device_key_validation(self):
         if self.devicekey == '':
-            print 'check failed'
             return False
 
         if self.keybag['sign']:
-            #print 'SIGN is %s'%self.keybag['sign']
             hmackey = aes_unwrap_key(self.devicekey, unhexlify(self.keybag['hmck']))
             sigcheck = hmac.new(key=hmackey, msg=self.keybag['data'], digestmod=sha1).digest()
-            #print 'sigcheck is %s'%hexlify(sigcheck)
             if hexlify(sigcheck) != self.keybag['sign']:
-                #print '-> SIGN check FAIL'
                 return False
         else:
-            #print '-> no SIGN data'
             return False
         return True
 
 
-def usage(argv):
-    print 'test'
-
 def main():
-    try:
-        option, args = getopt.getopt(sys.argv[1:], '')
-
-    except getopt.GetoptError, err:
-        print 'getopterror'
-        sys.exit()
-
     try:
         if len(sys.argv) != 2:
             print 'index error'
@@ -347,7 +325,6 @@ def main():
 
 
     keybag = Keybag(sys.argv[1])
-    #print 'class defined'
     keybag.load_keybag_header()
     keybag.debug_print_header()
     devicekey = keybag.device_key_init(uuid.UUID(sys.argv[2]).bytes)
@@ -357,8 +334,6 @@ def main():
 
 
     keybag.generatepasscodekey(sys.argv[3])
-
-    keybag.temp()
 
 if __name__ == "__main__":
     main()

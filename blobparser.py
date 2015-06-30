@@ -1,5 +1,4 @@
 from pyasn1.codec.der.decoder import decode as der_decode
-from pyasn1.codec.ber.decoder import decode as ber_decode
 import datetime
 
 # it's test code. Do not trust result. ;p

@@ -2,18 +2,28 @@ import os
 import uuid
 import argparse
 
-from binascii import hexlify, unhexlify
+from binascii import hexlify
 import sys
 from keybag import Keybag
 from blobparser import BlobParser
 import sqlite3 as lite
-import struct
 from hexdump import hexdump
 
 from exportDB import ExporySQLiteDB
 
 from crypto.aeswrap import aes_unwrap_key
 from crypto.gcm import gcm_decrypt
+from ctypes import *
+
+class _EncryptedBlobHeader(LittleEndianStructure):
+    _fields_ = [
+        ('version', c_uint32),
+        ('clas', c_uint32),
+        ('length', c_uint32)
+    ]
+def _memcpy(buf, fmt):
+    return cast(c_char_p(buf), POINTER(fmt)).contents
+
 
 def GetTableFullName(table):
     if table == 'genp':
@@ -27,10 +37,6 @@ def GetTableFullName(table):
     else:
         return 'Unknown'
 
-def usage(argv):
-    print 'Copyright by @n0fate'
-    print 'python %s [Path of iCloud Keychain] [Password]'%argv[0]
-
 def main():
 
 
@@ -38,11 +44,6 @@ def main():
     parser.add_argument('-p', '--path', nargs=1, help='iCloud Keychain Path(~/Library/Keychains/[UUID]/)', required=True)
     parser.add_argument('-k', '--key', nargs=1, help='User Password', required=True)
     parser.add_argument('-x', '--exportfile', nargs=1, help='Write a decrypted contents to SQLite file (optional)', required=False)
-
-#    if len(sys.argv) != 7:
-#        #print len(sys.argv)
-#        parser.print_help()
-#        sys.exit()
 
     args = parser.parse_args()
 
@@ -94,7 +95,7 @@ def main():
         print '[!] Device Key validation : Failed. Maybe Invalid PlatformUUID'
         return
     else:
-        print '[*] Device Key validation : Ok'
+        print '[*] Device Key validation : Pass'
 
     passcodekey = keybag.generatepasscodekey(args.key[0])
 
@@ -123,25 +124,20 @@ def main():
             # Get Table Schema
             sql = con.execute("pragma table_info('%s')"%tablename).fetchall()
 
-            # Create DB
-            #exportDB.createDB(args.exportfilename)
-
             # Create a table
             exportDB.createTable(tablename, sql)
 
         for data, in cur:
-            version, clas = struct.unpack("=LL", data[0:8])
-            clas &= 0x0F
+            encblobheader = _memcpy(data[:sizeof(_EncryptedBlobHeader)], _EncryptedBlobHeader)
+            encblobheader.clas &= 0x0F
 
-            l = struct.unpack("=L",data[8:12])[0]
+            wrappedkey = data[sizeof(_EncryptedBlobHeader):sizeof(_EncryptedBlobHeader)+encblobheader.length]
+            encrypted_data = data[sizeof(_EncryptedBlobHeader)+encblobheader.length:-16]
 
-            wrappedkey = data[12:12+l]
-            encrypted_data = data[12+l:-16]
-
-            key = keybag.GetKeybyClass(clas)
+            key = keybag.GetKeybyClass(encblobheader.clas)
 
             if key == '':
-                print '[!] Could not found any key at %d'%clas
+                print '[!] Could not found any key at %d'%encblobheader.clas
                 continue
 
             unwrappedkey = aes_unwrap_key(key, wrappedkey)
@@ -149,7 +145,6 @@ def main():
             
             if export is 0:
                 print '[+] DECRYPTED INFO'
-            #hexdump(decrypted)
             
             blobparse = BlobParser()
             record = blobparse.ParseIt(decrypted, tablename, export)
