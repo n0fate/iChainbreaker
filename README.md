@@ -14,7 +14,7 @@ iChainbreaker is just PoC code for analyzing iCloud Keychain. This project will 
       -p PATH, --path PATH  iCloud Keychain Path(~/Library/Keychains/[UUID]/)
       -k KEY, --key KEY     User Password
       -x EXPORTFILE, --exportfile EXPORTFILE
-                            Sqlite filename for decrypted record (optional)
+                            Write a decrypted contents to SQLite file (optional)
     n0fate@MacBook-Pro:~/iChainbreaker$ 
 
 
