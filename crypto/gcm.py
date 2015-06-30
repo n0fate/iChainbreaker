@@ -80,7 +80,7 @@ def gcm_decrypt(k, iv, encrypted, auth_data, tag):
     t = aes.encrypt(y0)
     T = strxor.strxor(s, t)
     if T != tag:
-        raise ValueError('Decrypted data is invalid')
+        return ''   # decrypted data is invalid
     else:
         return decrypted
 

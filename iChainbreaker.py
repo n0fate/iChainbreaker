@@ -104,6 +104,7 @@ def main():
     keybag.Decryption()
 
     con = lite.connect(PathofKeychain)
+    con.text_factory = str
     cur = con.cursor()
     
     tablelist = ['genp', 'inet', 'cert', 'keys']
@@ -118,7 +119,10 @@ def main():
     for tablename in tablelist:
         if export is not 1:
             print '[+] Table Name : %s'%GetTableFullName(tablename)
-        cur.execute("SELECT data FROM %s"%tablename)
+        try:
+            cur.execute("SELECT data FROM %s"%tablename)
+        except lite.OperationalError:
+            continue
 
         if export:
             # Get Table Schema
@@ -142,6 +146,9 @@ def main():
 
             unwrappedkey = aes_unwrap_key(key, wrappedkey)
             decrypted = gcm_decrypt(unwrappedkey, "", encrypted_data, "", data[-16:])
+
+            if len(decrypted) is 0:
+                continue
             
             if export is 0:
                 print '[+] DECRYPTED INFO'
