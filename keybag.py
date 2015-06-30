@@ -93,15 +93,6 @@ class Keybag():
 
         self.keybag = {'version':0, 'type':0, 'uuid':'', 'hmck':'', 'wrap':'', 'salt':'', 'iter':0, 'sign':''}
 
-        self.keybag['version'] = 0
-        self.keybag['type'] = 0
-        self.keybag['uuid'] = ''
-        self.keybag['hmck'] = ''
-        self.keybag['wrap'] = 0
-        self.keybag['salt'] = ''
-        self.keybag['iter'] = 0
-        self.keybag['sign'] = ''
-
         self.sign_offset = 0
 
         self.keyring = {}   # Password Set
@@ -137,7 +128,6 @@ class Keybag():
                     except ValueError:
                         print '[!] Invalid Password. Enter the valid user password'
                         sys.exit()
-                    #print unwrapped
                     decryptedkey = AESdecryptCBC(unwrapped, self.devicekey)
                     #print ' [-] Decrypted Key : %s'%hexlify(decryptedkey)
 
@@ -225,8 +215,8 @@ class Keybag():
         type = ('L', 'B', 'H', 'B')[index]
         key_len = len(key)/size
         data_len = len(data)/size
-        key_fmt = "<" + str(key_len) + type;
-        data_fmt = "<" + str(data_len) + type;
+        key_fmt = "<" + str(key_len) + type
+        data_fmt = "<" + str(data_len) + type
 
         key_list = struct.unpack(key_fmt, key)
         data_list = struct.unpack(data_fmt, data)
@@ -249,7 +239,6 @@ class Keybag():
             NewXorKey += 1
             NewHeap += xoredPRFKey
             Count += PRFKeyLen
-        #hexdump(NewHeap)
         return NewXorKey, NewHeap
 
     def hw_crypt_aligned(self, EncryptMethod, Unknown, filled_buf, BufSize, Version):
