@@ -37,7 +37,7 @@ def main():
     parser = argparse.ArgumentParser(description='Tool for iCloud Keychain Analysis by @n0fate')
     parser.add_argument('-p', '--path', nargs=1, help='iCloud Keychain Path(~/Library/Keychains/[UUID]/)', required=True)
     parser.add_argument('-k', '--key', nargs=1, help='User Password', required=True)
-    parser.add_argument('-x', '--exportfile', nargs=1, help='Sqlite filename for decrypted record (optional)', required=False)
+    parser.add_argument('-x', '--exportfile', nargs=1, help='Write a decrypted contents to SQLite file (optional)', required=False)
 
 #    if len(sys.argv) != 7:
 #        #print len(sys.argv)
