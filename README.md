@@ -19,4 +19,4 @@ iChainbreaker is just PoC code for analyzing iCloud Keychain. This project will 
 
 
 ## Reference
-iPhone-Data-Protection
+Sogeti ESEC Lab, iPhone data protection in depth, HITB Amsterdam 2011.
