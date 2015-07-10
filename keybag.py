@@ -13,6 +13,8 @@ import struct
 import uuid
 from binascii import hexlify, unhexlify
 
+from ctypes import *
+
 KEYBAG_DATA = '>4sI'
 KEYBAG_DATA_SIZE = 8
 KEYBAG_HEADER = '>4sII4sII4sI16s4sI40s4sII4sI20s4sII'
@@ -20,6 +22,60 @@ KEYBAG_HEADER_SIZE = 148
 KEYBAG_SIGN = '>4sI20s'
 KEYBAG_SIGN_SIZE = 28
 
+class _tlvint(BigEndianStructure):
+    _fields_ = [
+            ("type", c_char*4),
+            ("length", c_uint32),
+            ("value", c_uint32)
+        ]
+
+class _tlvuuid(BigEndianStructure):
+    _fields_ = [
+            ("type", c_char*4),
+            ("length", c_uint32),
+            ("value", c_ubyte*16)
+        ]
+
+class _tlvsalt(BigEndianStructure):
+    _fields_ = [
+            ("type", c_char*4),
+            ("length", c_uint32),
+            ("value", c_ubyte*20)
+        ]
+
+class _tlvhmac(BigEndianStructure):
+    _fields_ = [
+            ("type", c_char*4),
+            ("length", c_uint32),
+            ("value", c_ubyte*40)
+        ]
+
+class _keybag_sign(BigEndianStructure):
+    _fields_ = [
+            ("type", c_char*4),
+            ("length", c_uint32),
+            ("value", c_ubyte*20)
+        ]
+
+class _keybag_header(BigEndianStructure):
+    _fields_ = [
+            ("vers", _tlvint),
+            ("type", _tlvint),
+            ("uuid", _tlvuuid),
+            ("hmck", _tlvhmac),
+            ("wrap", _tlvint),
+            ("salt", _tlvsalt),
+            ("iter", _tlvint)
+        ]
+
+class _keybag_data(BigEndianStructure):
+    _fields_ = [
+        ("data", c_char*4),
+        ("datasize", c_uint32)
+        ]
+
+def _memcpy(buf, fmt):
+    return cast(c_char_p(buf), POINTER(fmt)).contents
 
 def tlvs(data):
     '''TLVs parser generator'''
@@ -86,7 +142,7 @@ class Keybag():
     def __init__(self, filepath):
         self.filepath = filepath
         self.fileoffset = 0
-        self.fhandle = ''
+        fhandle = ''
 
         self.masterkey = ''
         self.devicekey = ''
@@ -98,10 +154,11 @@ class Keybag():
         self.keyring = {}   # Password Set
 
         try:
-            self.fhandle = open(self.filepath, 'rb')
+            fhandle = open(self.filepath, 'rb')
         except:
             print '[-] Keybag open failed'
-        self.fbuf = self.fhandle.read()
+        self.fbuf = fhandle.read()
+        fhandle.close()
 
     def Decryption(self):
         dict = {}
@@ -142,40 +199,45 @@ class Keybag():
         return key
 
     def load_keybag_header(self):
-        data_header = struct.unpack(KEYBAG_DATA, self.fbuf[:KEYBAG_DATA_SIZE])
+        keybag_data = _memcpy(self.fbuf[:sizeof(_keybag_data)], _keybag_data)
+        #data_header = struct.unpack(KEYBAG_DATA, self.fbuf[:KEYBAG_DATA_SIZE])
+        endofdata = sizeof(keybag_data) + keybag_data.datasize
 
-        self.keybag['data'] = self.fbuf[KEYBAG_DATA_SIZE:KEYBAG_DATA_SIZE+data_header[1]]
+        self.keybag['data'] = self.fbuf[sizeof(_keybag_data):endofdata]
 
-        self.sign_offset = KEYBAG_DATA_SIZE + data_header[1]
+        self.sign_offset = endofdata
 
-        SignLength = struct.unpack('>I', self.fbuf[self.sign_offset:self.sign_offset+4])[0]
-        self.keybag['sign'] = self.fbuf[self.sign_offset+4:self.sign_offset+4+SignLength]
+        keybag_sign = _memcpy(self.fbuf[endofdata:endofdata+sizeof(_keybag_sign)], _keybag_sign)
+        #SignLength = struct.unpack('>I', self.fbuf[self.sign_offset:self.sign_offset+4])[0]
+        self.keybag['sign'] = keybag_sign.value
 
         keybag_header = struct.unpack(KEYBAG_HEADER, self.fbuf[KEYBAG_DATA_SIZE:KEYBAG_DATA_SIZE+KEYBAG_HEADER_SIZE])
 
-        if keybag_header[0] == 'VERS':
-            self.keybag['version'] = keybag_header[2]
+        keybag_header = _memcpy(self.fbuf[sizeof(_keybag_data):sizeof(_keybag_data)+sizeof(_keybag_header)], _keybag_header)
 
-        if keybag_header[3] == 'TYPE':
-            self.keybag['type'] = keybag_header[5]
+        #if keybag_header[0] == 'VERS':
+        self.keybag['version'] = keybag_header.vers.value
 
-        if keybag_header[6] == 'UUID':
-            self.keybag['uuid'] = uuid.UUID(bytes=keybag_header[8])
+        #if keybag_header[3] == 'TYPE':
+        self.keybag['type'] = keybag_header.type.value
 
-        if keybag_header[9] == 'HMCK':
-            self.keybag['hmck'] = hexlify(keybag_header[11])
+        #if keybag_header[6] == 'UUID':
+        #self.keybag['uuid'] = uuid.UUID(bytes=keybag_header.uuid.value)
 
-        if keybag_header[12] == 'WRAP':
-            self.keybag['wrap'] = get_wrap_name(keybag_header[14])
+        #if keybag_header[9] == 'HMCK':
+        self.keybag['hmck'] = hexlify(keybag_header.hmck.value)
 
-        if keybag_header[15] == 'SALT':
-            self.keybag['salt'] = hexlify(keybag_header[17])
+        #if keybag_header[12] == 'WRAP':
+        self.keybag['wrap'] = get_wrap_name(keybag_header.wrap.value)
 
-        if keybag_header[18] == 'ITER':
-            self.keybag['iter'] = keybag_header[20]
+        #if keybag_header[15] == 'SALT':
+        self.keybag['salt'] = hexlify(keybag_header.salt.value)
 
-        sign = struct.unpack(KEYBAG_SIGN, self.fbuf[self.sign_offset:])
-        self.keybag['sign'] = hexlify(sign[2])
+        #if keybag_header[18] == 'ITER':
+        self.keybag['iter'] = keybag_header.iter.value
+
+        #sign = struct.unpack(KEYBAG_SIGN, self.fbuf[self.sign_offset:])
+        #self.keybag['sign'] = hexlify(sign[2])
 
     def get_keybag_type(self, typenum):
         if typenum == 0:
