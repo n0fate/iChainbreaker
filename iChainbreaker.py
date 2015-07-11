@@ -74,9 +74,9 @@ def main():
     PathofKeybag = os.path.join(Pathoficloudkeychain, 'user.kb')
     PathofKeychain = os.path.join(Pathoficloudkeychain, 'keychain-2.db')
 
-    print '[*] UUID is %s'%MachineUUID
-    print '[*] Keybag is %s'%PathofKeybag
-    print '[*] iCloud Keychain File is %s'%PathofKeychain
+    print '[*] UUID : %s'%MachineUUID
+    print '[*] Keybag : %s'%PathofKeybag
+    print '[*] iCloud Keychain File : %s'%PathofKeychain
 
     if os.path.exists(PathofKeybag) is False or os.path.exists(PathofKeychain) is False:
         print '[!] Can not found KeyBag or iCloud Keychain File'
@@ -87,7 +87,7 @@ def main():
     keybag.debug_print_header()
 
     devicekey = keybag.device_key_init(uuid.UUID(MachineUUID).bytes)
-    print '[*] The Device key is %s'%hexlify(devicekey)
+    print '[*] The Device key : %s'%hexlify(devicekey)
 
     bresult = keybag.device_key_validation()
 
@@ -99,7 +99,7 @@ def main():
 
     passcodekey = keybag.generatepasscodekey(args.key[0])
 
-    print '[*] The passcode key is %s'%hexlify(passcodekey)
+    print '[*] The passcode key : %s'%hexlify(passcodekey)
 
     keybag.Decryption()
 

@@ -140,29 +140,28 @@ def get_wrap_name(wrapnum):
 
 class Keybag():
     def __init__(self, filepath):
-        self.filepath = filepath
-        self.fileoffset = 0
-        fhandle = ''
+        #self.filepath = filepath
+        #self.fileoffset = 0
+        #fhandle = ''
 
-        self.masterkey = ''
         self.devicekey = ''
+        self.endofdata = 0
 
-        self.keybag = {'version':0, 'type':0, 'uuid':'', 'hmck':'', 'wrap':'', 'salt':'', 'iter':0, 'sign':''}
-
-        self.sign_offset = 0
+        self.keybag = {}
 
         self.keyring = {}   # Password Set
 
         try:
-            fhandle = open(self.filepath, 'rb')
+            fhandle = open(filepath, 'rb')
         except:
             print '[-] Keybag open failed'
+            sys.exit()
         self.fbuf = fhandle.read()
         fhandle.close()
 
     def Decryption(self):
         dict = {}
-        for type, data in tlvs(self.fbuf[KEYBAG_DATA_SIZE+KEYBAG_HEADER_SIZE:self.sign_offset]):
+        for type, data in tlvs(self.fbuf[KEYBAG_DATA_SIZE+KEYBAG_HEADER_SIZE:self.endofdata]):
             #if type == 'UUID':
                 #print '%s : %s'%(type, uuid.UUID(bytes=data) )
             if type == 'CLAS':
@@ -200,18 +199,13 @@ class Keybag():
 
     def load_keybag_header(self):
         keybag_data = _memcpy(self.fbuf[:sizeof(_keybag_data)], _keybag_data)
-        #data_header = struct.unpack(KEYBAG_DATA, self.fbuf[:KEYBAG_DATA_SIZE])
         endofdata = sizeof(keybag_data) + keybag_data.datasize
+        self.endofdata = endofdata
 
         self.keybag['data'] = self.fbuf[sizeof(_keybag_data):endofdata]
 
-        self.sign_offset = endofdata
-
         keybag_sign = _memcpy(self.fbuf[endofdata:endofdata+sizeof(_keybag_sign)], _keybag_sign)
-        #SignLength = struct.unpack('>I', self.fbuf[self.sign_offset:self.sign_offset+4])[0]
-        self.keybag['sign'] = keybag_sign.value
-
-        keybag_header = struct.unpack(KEYBAG_HEADER, self.fbuf[KEYBAG_DATA_SIZE:KEYBAG_DATA_SIZE+KEYBAG_HEADER_SIZE])
+        self.keybag['sign'] = hexlify(keybag_sign.value)
 
         keybag_header = _memcpy(self.fbuf[sizeof(_keybag_data):sizeof(_keybag_data)+sizeof(_keybag_header)], _keybag_header)
 
@@ -222,7 +216,7 @@ class Keybag():
         self.keybag['type'] = keybag_header.type.value
 
         #if keybag_header[6] == 'UUID':
-        #self.keybag['uuid'] = uuid.UUID(bytes=keybag_header.uuid.value)
+        self.keybag['uuid'] = keybag_header.uuid.value
 
         #if keybag_header[9] == 'HMCK':
         self.keybag['hmck'] = hexlify(keybag_header.hmck.value)
@@ -235,9 +229,6 @@ class Keybag():
 
         #if keybag_header[18] == 'ITER':
         self.keybag['iter'] = keybag_header.iter.value
-
-        #sign = struct.unpack(KEYBAG_SIGN, self.fbuf[self.sign_offset:])
-        #self.keybag['sign'] = hexlify(sign[2])
 
     def get_keybag_type(self, typenum):
         if typenum == 0:
@@ -256,14 +247,14 @@ class Keybag():
             return 'AES encrypted with device key'
 
     def debug_print_header(self):
-        print '[+] Header'
+        print '[+] Keybag Header'
         print ' [-] versions : %d'%self.keybag['version']
         print ' [-] type : %s'%self.get_keybag_type(self.keybag['type'])
-        print ' [-] UUID : %s'%self.keybag['uuid']
-        print ' [-] HMCK : %s'%self.keybag['hmck']
-        print ' [-] WRAP : %s'%(self.get_wrap_type(self.keybag['wrap']))
-        print ' [-] SALT : %s'%self.keybag['salt']
-        print ' [-] Iteration Count : %d'%self.keybag['iter']
+        print ' [-] uuid : %s'%uuid.UUID(bytes=str(bytearray(self.keybag['uuid'])))
+        print ' [-] hmac key : %s'%self.keybag['hmck']
+        print ' [-] wrap : %s'%(self.get_wrap_type(self.keybag['wrap']))
+        print ' [-] salt : %s'%self.keybag['salt']
+        print ' [-] iteration count : %d'%self.keybag['iter']
 
     def generatepasscodekey(self, passcode):
         passcodekey_prf = pbkdf2(passcode, unhexlify(self.keybag['salt']), 1, 32, sha1)
@@ -378,7 +369,7 @@ def main():
     keybag = Keybag(sys.argv[1])
     keybag.load_keybag_header()
     keybag.debug_print_header()
-    devicekey = keybag.device_key_init(uuid.UUID(sys.argv[2]).bytes)
+    devicekey = keybag.device_key_init()
     print 'device key is %s'%hexlify(devicekey)
 
     keybag.device_key_validation()
