@@ -52,7 +52,7 @@ PROTOCOL_TYPE = {
     'cvsp': 'CVS server',
     'svn ': 'SVN server',
     'AdIM': 'Adium Messenger',
-    '\x00\x00\x00\x00': 'Any'
+    '0': 'Any'
 }
 
 
@@ -118,7 +118,9 @@ SEC_CONST_DECL = {
     'klbl': 'ApplicationLabel',
     'perm': 'IsPermanent',
     'priv': 'IsPrivate',
-    'modi': 'IsModifiable'
+    'modi': 'IsModifiable',
+    'musr': 'MUSR',     # unknown
+    'vwht': 'VWHT'      # unknown
 
 }
 
@@ -150,19 +152,34 @@ class BlobParser:
         self.datadict = {}
 
     def GetColumnFullName(self, data):
-        return SEC_CONST_DECL[data]
+        try:
+            return SEC_CONST_DECL[data]
+        except KeyError:
+            return 'Unknown Value'
 
     def GetProtoFullName(self, data):
-        return PROTOCOL_TYPE[data]
+        try:
+            return PROTOCOL_TYPE[data]
+        except KeyError:
+            return 'Unknown Value'
 
     def GetAuthType(self, data):
-        return AUTH_TYPE[data]
+        try:
+            return AUTH_TYPE[data]
+        except KeyError:
+            return 'Unknown Value'
 
     def GetAccessibleName(self, data):
-        return kSecAttrAccessible[data]
+        try:
+            return kSecAttrAccessible[data]
+        except KeyError:
+            return 'Unknown Value'
 
     def Getdate(self, data):
-        return datetime.datetime.strptime(data, '%Y%m%d%H%M%S.%fZ')
+        try:
+            return datetime.datetime.strptime(data.split('.')[0], '%Y%m%d%H%M%S')
+        except ValueError:
+            return datetime.datetime.strptime(data.split('.')[0], '%Y%m%d%H%M%S')
 
     def GetKeyType(self, data):
         return kSecAttrKeyType[data]
