@@ -11,8 +11,9 @@ from hexdump import hexdump
 
 from exportDB import ExporySQLiteDB
 
-from crypto.aeswrap import aes_unwrap_key
+from crypto.aeswrap import AESUnwrap
 from crypto.gcm import gcm_decrypt
+from crypto.aes import AESdecryptCBC
 from ctypes import *
 
 class _EncryptedBlobHeader(LittleEndianStructure):
@@ -136,7 +137,12 @@ def main():
             encblobheader.clas &= 0x0F
 
             wrappedkey = data[sizeof(_EncryptedBlobHeader):sizeof(_EncryptedBlobHeader)+encblobheader.length]
-            encrypted_data = data[sizeof(_EncryptedBlobHeader)+encblobheader.length:-16]
+            if encblobheader.clas == 11:
+                encrypted_data = data[sizeof(_EncryptedBlobHeader)+encblobheader.length:]
+                auth_tag = data[-20:-4]
+            else:    
+                encrypted_data = data[sizeof(_EncryptedBlobHeader)+encblobheader.length:-16]
+                auth_tag = data[-16:]
 
             key = keybag.GetKeybyClass(encblobheader.clas)
 
@@ -144,10 +150,12 @@ def main():
                 print '[!] Could not found any key at %d'%encblobheader.clas
                 continue
 
-            unwrappedkey = aes_unwrap_key(key, wrappedkey)
-            decrypted = gcm_decrypt(unwrappedkey, "", encrypted_data, "", data[-16:])
+            unwrappedkey = AESUnwrap(key, wrappedkey)
+
+            decrypted = gcm_decrypt(unwrappedkey, "", encrypted_data, "", auth_tag)
 
             if len(decrypted) is 0:
+                #print(" [-] Decryption Process Failed. Invalid Key or Data is corrupted.")
                 continue
             
             if export is 0:

@@ -1,6 +1,6 @@
 from crypto.aes import AESdecryptCBC
 from crypto.aes import AESencryptCBC
-from crypto.aeswrap import aes_unwrap_key
+from crypto.aeswrap import AESUnwrap
 import hmac
 from crypto.pbkdf2 import pbkdf2
 import hashlib
@@ -140,10 +140,6 @@ def get_wrap_name(wrapnum):
 
 class Keybag():
     def __init__(self, filepath):
-        #self.filepath = filepath
-        #self.fileoffset = 0
-        #fhandle = ''
-
         self.devicekey = ''
         self.endofdata = 0
 
@@ -165,13 +161,14 @@ class Keybag():
             #if type == 'UUID':
                 #print '%s : %s'%(type, uuid.UUID(bytes=data) )
             if type == 'CLAS':
-                #print ' [-] %s : %s'%(type, get_class_name(int(hexlify(data), 16) ))
+                #print ' [-] %s : %s %d'%(type, get_class_name(int(hexlify(data), 16) ), int(hexlify(data), 16))
                 dict['CLAS'] = int(hexlify(data), 16)
             elif type == 'WRAP':
-                #print '%s : %s'%(type, get_wrap_name(int(hexlify(data), 16) ))
+                #print ' [-] %s : %s'%(type, get_wrap_name(int(hexlify(data), 16) ))
                 dict['WRAP'] = int(hexlify(data), 16)
-            #elif type == 'KTYP':
-                #print '%s : %s'%(type, get_key_type(int(hexlify(data), 16) ))
+            elif type == 'KTYP':
+                #print ' [-] %s : %s'%(type, get_key_type(int(hexlify(data), 16) ))
+                dict['KTYP'] = int(hexlify(data), 16)
             elif type == 'WPKY':
                 decryptedkey = ''
                 
@@ -180,7 +177,7 @@ class Keybag():
                     #print ' [-] Decrypted Key : %s'%hexlify(decryptedkey)
                 elif dict['WRAP'] == 3:
                     try:
-                        unwrapped = aes_unwrap_key(self.passcodekey, data)
+                        unwrapped = AESUnwrap(self.passcodekey, data)
                     except ValueError:
                         print '[!] Invalid Password. Enter the valid user password'
                         sys.exit()
@@ -242,7 +239,7 @@ class Keybag():
 
     def get_wrap_type(self, wraptype):
         if wraptype == 0:
-            return 'unknown'
+            return 'Wrapped key after AES encrypted with device key'
         elif wraptype == 1:
             return 'AES encrypted with device key'
 
@@ -255,6 +252,7 @@ class Keybag():
         print ' [-] wrap : %s'%(self.get_wrap_type(self.keybag['wrap']))
         print ' [-] salt : %s'%self.keybag['salt']
         print ' [-] iteration count : %d'%self.keybag['iter']
+        print ' [-] Signature : %s'%(self.keybag['sign'])
 
     def generatepasscodekey(self, passcode):
         passcodekey_prf = pbkdf2(passcode, unhexlify(self.keybag['salt']), 1, 32, sha1)
@@ -340,7 +338,7 @@ class Keybag():
             return False
 
         if self.keybag['sign']:
-            hmackey = aes_unwrap_key(self.devicekey, unhexlify(self.keybag['hmck']))
+            hmackey = AESUnwrap(self.devicekey, unhexlify(self.keybag['hmck']))
             sigcheck = hmac.new(key=hmackey, msg=self.keybag['data'], digestmod=sha1).digest()
             if hexlify(sigcheck) != self.keybag['sign']:
                 return False

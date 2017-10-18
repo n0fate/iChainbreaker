@@ -1,4 +1,5 @@
-from pyasn1.codec.der.decoder import decode as der_decode
+from pyasn1.codec.der import decoder
+from pyasn1 import debug
 import datetime
 
 # it's test code. Do not trust result. ;p
@@ -186,10 +187,16 @@ class BlobParser:
 
     def ParseIt(self, data, tblname, export):
         record = {}
-        Decoded = der_decode(data)[0]
+        #debug.setLogger(debug.Debug('all'))
+        Decoded, _ = decoder.decode(data)
+        count = 0
+        while 1:
+            try: 
+                k = Decoded.getComponentByName('field-%d'%count).getComponentByName('field-0')
+                data = str(Decoded.getComponentByName('field-%d'%count).getComponentByName('field-1'))
+            except:
+                break
 
-        for k, v in Decoded: #self.datadict.items():
-            data = '%s'%v
             if k == 'atyp':
                 data = self.GetAuthType(data)
             elif k == 'pdmn':
@@ -200,10 +207,11 @@ class BlobParser:
                 data = self.GetProtoFullName(data)
             elif k == 'klbl':
                 data = data.encode('hex')
-            
+
             if export == 0:
                 k = self.GetColumnFullName('%s'%k)
             record[k] = data
+            count += 1
 
         return record
 

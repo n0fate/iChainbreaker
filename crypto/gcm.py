@@ -75,6 +75,7 @@ def gcm_decrypt(k, iv, encrypted, auth_data, tag):
         y0 = ghash(h, '', iv)
 
     decrypted = gctr(k, y0, encrypted)
+
     s = ghash(h, auth_data, encrypted)
 
     t = aes.encrypt(y0)
