@@ -191,10 +191,12 @@ class BlobParser:
         Decoded, _ = decoder.decode(data)
         count = 0
         while 1:
-            try: 
-                k = Decoded.getComponentByName('field-%d'%count).getComponentByName('field-0')
-                data = str(Decoded.getComponentByName('field-%d'%count).getComponentByName('field-1'))
+            try:
+                seq = Decoded.getComponentByPosition(count)
+                k = seq.getComponentByPosition(0)
+                data = '%s' % seq.getComponentByPosition(1)
             except:
+                print ' [-] Decrypted', count, 'items in', tblname
                 break
 
             if k == 'atyp':
