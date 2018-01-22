@@ -349,12 +349,12 @@ class Keybag():
 
 def main():
     try:
-        if len(sys.argv) != 2:
-            print 'index error'
+        if len(sys.argv) != 3:
+            print 'Debug error'
             sys.exit()
 
     except IndexError:
-        print 'index error'
+        print 'Debug error'
         sys.exit()
 
     try:
@@ -367,7 +367,7 @@ def main():
     keybag = Keybag(sys.argv[1])
     keybag.load_keybag_header()
     keybag.debug_print_header()
-    devicekey = keybag.device_key_init()
+    devicekey = keybag.device_key_init(sys.argv[2])
     print 'device key is %s'%hexlify(devicekey)
 
     keybag.device_key_validation()

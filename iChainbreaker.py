@@ -45,6 +45,7 @@ def main():
     parser.add_argument('-p', '--path', nargs=1, help='iCloud Keychain Path(~/Library/Keychains/[UUID]/)', required=True)
     parser.add_argument('-k', '--key', nargs=1, help='User Password', required=True)
     parser.add_argument('-x', '--exportfile', nargs=1, help='Write a decrypted contents to SQLite file (optional)', required=False)
+    parser.add_argument('-v', '--version', nargs=1, help='macOS version(ex. 10.13)', required=True)
 
     args = parser.parse_args()
 
@@ -57,6 +58,32 @@ def main():
 
     if os.path.exists(Pathoficloudkeychain) is False:
         print '[!] Path is not exists'
+        parser.print_help()
+        sys.exit()
+
+    # version check
+    import re
+    gcmIV = ''
+    re1='(10)'    # Integer Number 1
+    re2='(\\.)' # Any Single Character 1
+    re3='(\\d+)'    # Integer Number 2
+
+    rg = re.compile(re1+re2+re3,re.IGNORECASE|re.DOTALL)
+    m = rg.match(args.version[0])
+    if m:
+        minorver = m.group(3)
+        if minorver >= 12:
+            # Security-57740.51.3/OSX/sec/securityd/SecDbKeychainItem.c:97
+            #
+            # // echo "keychainblobstaticiv" | openssl dgst -sha256 | cut -c1-24 | xargs -I {} echo "0x{}" | xxd -r | xxd -p  -i
+            # static const uint8_t gcmIV[kIVSizeAESGCM] = {
+            #     0x1e, 0xa0, 0x5c, 0xa9, 0x98, 0x2e, 0x87, 0xdc, 0xf1, 0x45, 0xe8, 0x24
+            # };
+            gcmIV = '\x1e\xa0\x5c\xa9\x98\x2e\x87\xdc\xf1\x45\xe8\x24'
+        else:
+            gcmIV = ''
+    else:
+        print '[!] Invalid version'
         parser.print_help()
         sys.exit()
 
@@ -75,6 +102,7 @@ def main():
     PathofKeybag = os.path.join(Pathoficloudkeychain, 'user.kb')
     PathofKeychain = os.path.join(Pathoficloudkeychain, 'keychain-2.db')
 
+    print '[*] macOS version is %s'%args.version[0]
     print '[*] UUID : %s'%MachineUUID
     print '[*] Keybag : %s'%PathofKeybag
     print '[*] iCloud Keychain File : %s'%PathofKeychain
@@ -152,13 +180,7 @@ def main():
 
             unwrappedkey = AESUnwrap(key, wrappedkey)
 
-            # Security-57740.51.3/OSX/sec/securityd/SecDbKeychainItem.c:97
-            #
-            # // echo "keychainblobstaticiv" | openssl dgst -sha256 | cut -c1-24 | xargs -I {} echo "0x{}" | xxd -r | xxd -p  -i
-            # static const uint8_t gcmIV[kIVSizeAESGCM] = {
-            #     0x1e, 0xa0, 0x5c, 0xa9, 0x98, 0x2e, 0x87, 0xdc, 0xf1, 0x45, 0xe8, 0x24
-            # };
-            decrypted = gcm_decrypt(unwrappedkey, "\x1e\xa0\x5c\xa9\x98\x2e\x87\xdc\xf1\x45\xe8\x24", encrypted_data, data[:sizeof(_EncryptedBlobHeader)], auth_tag)
+            decrypted = gcm_decrypt(unwrappedkey, gcmIV, encrypted_data, data[:sizeof(_EncryptedBlobHeader)], auth_tag)
 
             if len(decrypted) is 0:
                 #print(" [-] Decryption Process Failed. Invalid Key or Data is corrupted.")

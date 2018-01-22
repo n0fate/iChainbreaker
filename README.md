@@ -5,7 +5,7 @@ iChainbreaker is just PoC code for analyzing iCloud Keychain. This project will 
 ## How to use
 
     n0fate@MacBook-Pro:~/iChainbreaker$ python iChainbreaker.py -h
-    usage: iChainbreaker.py [-h] -p PATH -k KEY [-x EXPORTFILE]
+    usage: iChainbreaker.py [-h] -p PATH -k KEY [-x EXPORTFILE] -v VERSION
     
     Tool for iCloud Keychain Analysis by @n0fate
     
@@ -15,6 +15,8 @@ iChainbreaker is just PoC code for analyzing iCloud Keychain. This project will 
       -k KEY, --key KEY     User Password
       -x EXPORTFILE, --exportfile EXPORTFILE
                             Write a decrypted contents to SQLite file (optional)
+      -v VERSION, --version VERSION
+                            macOS version(ex. 10.13)
     n0fate@MacBook-Pro:~/iChainbreaker$ 
 
 

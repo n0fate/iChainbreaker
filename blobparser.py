@@ -2,7 +2,8 @@ from pyasn1.codec.der import decoder
 from pyasn1 import debug
 import datetime
 
-# it's test code. Do not trust result. ;p
+# Reference : https://opensource.apple.com/source/libsecurity_keychain/libsecurity_keychain-55044/lib/SecItem.h
+# Reference : https://opensource.apple.com/source/Security/Security-57740.51.3/OSX/sec/Security/SecItemConstants.c.auto.html
 
 AUTH_TYPE = {
     'ntlm': 'NTLM',
@@ -53,6 +54,7 @@ PROTOCOL_TYPE = {
     'cvsp': 'CVS server',
     'svn ': 'SVN server',
     'AdIM': 'Adium Messenger',
+    'pops': 'POP3',
     '0': 'Any'
 }
 
@@ -132,19 +134,23 @@ kSecAttrAccessible = {
     'dk': 'AccessibleAlways',
     'aku': 'AccessibleWhenUnlockedThisDeviceOnly',
     'cku': 'AccessibleAfterFirstUnlockThisDeviceOnly',
-    'dku': 'AccessibleAlwaysThisDeviceOnly'
+    'dku': 'AccessibleAlwaysThisDeviceOnly',
+    'akpu': 'kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly'
 }
 
+# https://opensource.apple.com/source/libsecurity_cssm/libsecurity_cssm-32993/lib/cssmtype.h
+# CSSM_ALGORITHMS
 kSecAttrKeyType = {
-    14: 'DES',
-    23: 'RC2',
-    25: 'RC4',
-    42: 'RSA',
-    43: 'DSA',
-    56: 'CAST',
-    73: 'ECDSA',
-    77: '3DES',
-    2147483649: 'AES'
+    0: 'CSSM_ALGID_NONE',
+    14: 'CSSM_ALGID_DES',
+    23: 'CSSM_ALGID_RC2',
+    25: 'CSSM_ALGID_RC4',
+    42: 'CSSM_ALGID_RSA',
+    43: 'CSSM_ALGID_DSA',
+    56: 'CSSM_ALGID_ConcatBaseAndKey',
+    73: 'CSSM_ALGID_ECDSA',
+    77: 'CSSM_ALGID_3DES',
+    2147483649: 'CSSM_ALGID_LAST'
 }
 
 
@@ -196,7 +202,7 @@ class BlobParser:
                 k = seq.getComponentByPosition(0)
                 data = '%s' % seq.getComponentByPosition(1)
             except:
-                print ' [-] Decrypted', count, 'items in', tblname
+                #print ' [-] Decrypted', count, 'items in', tblname
                 break
 
             if k == 'atyp':
