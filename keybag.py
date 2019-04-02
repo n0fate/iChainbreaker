@@ -156,6 +156,12 @@ class Keybag():
         fhandle.close()
 
     def Decryption(self):
+
+        if self.keybag['version'] >= 5:
+            wrap_iv_digest = sha256(struct.pack('<ll', 0, 5))
+            wrap_iv_digest.update(unhexlify(self.keybag['salt']))
+            key_store_wrap_iv = wrap_iv_digest.digest()[:16]
+
         dict = {}
         for type, data in tlvs(self.fbuf[KEYBAG_DATA_SIZE+KEYBAG_HEADER_SIZE:self.endofdata]):
             #if type == 'UUID':
@@ -176,13 +182,20 @@ class Keybag():
                     decryptedkey = AESdecryptCBC(data, self.devicekey)
                     #print ' [-] Decrypted Key : %s'%hexlify(decryptedkey)
                 elif dict['WRAP'] == 3:
+                    if self.keybag['version'] >= 5:
+                        data = AESdecryptCBC(data[:32], self.devicekey, key_store_wrap_iv) + data[32:40]
+
                     try:
                         unwrapped = AESUnwrap(self.passcodekey, data)
                     except ValueError:
                         print '[!] Invalid Password. Enter the valid user password'
                         sys.exit()
-                    decryptedkey = AESdecryptCBC(unwrapped, self.devicekey)
-                    #print ' [-] Decrypted Key : %s'%hexlify(decryptedkey)
+
+                    if self.keybag['version'] >= 5:
+                        decryptedkey = unwrapped
+                    else:
+                        decryptedkey = AESdecryptCBC(unwrapped, self.devicekey)
+                        #print ' [-] Decrypted Key : %s'%hexlify(decryptedkey)
 
                 self.keyring[dict['CLAS']] = decryptedkey  # Key
 

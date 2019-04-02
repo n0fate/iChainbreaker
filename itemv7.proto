@@ -1,0 +1,25 @@
+syntax = "proto2";
+
+message EncryptedSecretData {
+    required bytes ciphertext = 1;
+    required WrappedKey wrappedKey = 2;
+    required string tamperCheck = 3;
+}
+
+message WrappedKey {
+    required bytes wrappedKey = 1;
+    required uint32 type = 3;
+}
+
+message EncryptedMetadata {
+    required bytes ciphertext = 1;
+    required bytes wrappedKey = 2;
+    required string tamperCheck = 3;
+}
+
+message ItemV7Protobuf {
+    required EncryptedSecretData encryptedSecretData = 1;
+    required EncryptedMetadata encryptedMetadata = 2;
+
+    required int32 keyclass = 3;
+}
