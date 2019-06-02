@@ -1,9 +1,12 @@
 import os
+import string
 import uuid
 import argparse
 
 from binascii import hexlify
 import sys
+
+from itemv7 import ItemV7
 from keybag import Keybag
 from blobparser import BlobParser
 import sqlite3 as lite
@@ -143,7 +146,8 @@ def main():
         exportDB = ExporySQLiteDB()
         exportDB.createDB(args.exportfile[0])
         print '[*] Export DB Name : %s'%args.exportfile[0]
-
+    else:
+        exportDB = None
 
     for tablename in tablelist:
         if export is not 1:
@@ -162,25 +166,48 @@ def main():
 
         for data, in cur:
             encblobheader = _memcpy(data[:sizeof(_EncryptedBlobHeader)], _EncryptedBlobHeader)
-            encblobheader.clas &= 0x0F
 
-            wrappedkey = data[sizeof(_EncryptedBlobHeader):sizeof(_EncryptedBlobHeader)+encblobheader.length]
-            if encblobheader.clas == 11:
-                encrypted_data = data[sizeof(_EncryptedBlobHeader)+encblobheader.length:]
-                auth_tag = data[-20:-4]
-            else:    
-                encrypted_data = data[sizeof(_EncryptedBlobHeader)+encblobheader.length:-16]
-                auth_tag = data[-16:]
+            if encblobheader.version == 7:
+                item = ItemV7(data)
 
-            key = keybag.GetKeybyClass(encblobheader.clas)
+                if item.keyclass == 11:
+                    continue
 
-            if key == '':
-                print '[!] Could not found any key at %d'%encblobheader.clas
-                continue
+                key = keybag.GetKeybyClass(item.keyclass)
+                decrypted = item.decrypt_secret_data(key)
 
-            unwrappedkey = AESUnwrap(key, wrappedkey)
+                metadatakey_row = con.execute('select data from metadatakeys where keyclass=?', (item.keyclass,)).fetchone()
+                metadatakey = metadatakey_row[0]
 
-            decrypted = gcm_decrypt(unwrappedkey, gcmIV, encrypted_data, data[:sizeof(_EncryptedBlobHeader)], auth_tag)
+                unwrapped_metadata_key = AESUnwrap(key, metadatakey)
+
+                metadata = item.decrypt_metadata(unwrapped_metadata_key)
+
+                if export is 0:
+                    print '[+] DECRYPTED METADATA'
+
+                handle_decrypted(metadata, export, exportDB, tablename)
+
+            else:
+                encblobheader.clas &= 0x0F
+
+                wrappedkey = data[sizeof(_EncryptedBlobHeader):sizeof(_EncryptedBlobHeader)+encblobheader.length]
+                if encblobheader.clas == 11:
+                    encrypted_data = data[sizeof(_EncryptedBlobHeader)+encblobheader.length:]
+                    auth_tag = data[-20:-4]
+                else:
+                    encrypted_data = data[sizeof(_EncryptedBlobHeader)+encblobheader.length:-16]
+                    auth_tag = data[-16:]
+
+                key = keybag.GetKeybyClass(encblobheader.clas)
+
+                if key == '':
+                    print '[!] Could not found any key at %d'%encblobheader.clas
+                    continue
+
+                unwrappedkey = AESUnwrap(key, wrappedkey)
+
+                decrypted = gcm_decrypt(unwrappedkey, gcmIV, encrypted_data, data[:sizeof(_EncryptedBlobHeader)], auth_tag)
 
             if len(decrypted) is 0:
                 #print(" [-] Decryption Process Failed. Invalid Key or Data is corrupted.")
@@ -188,26 +215,8 @@ def main():
             
             if export is 0:
                 print '[+] DECRYPTED INFO'
-            
-            blobparse = BlobParser()
-            record = blobparse.ParseIt(decrypted, tablename, export)
 
-            if export is 0:
-                for k, v in record.items():
-                    if k == 'Data':
-                        print ' [-]', k
-                        hexdump(v)
-                    elif k == 'Type' and GetTableFullName(tablename) == 'Keys':
-                        print ' [-]', k, ':', blobparse.GetKeyType(int(v))
-                    else:
-                        print ' [-]', k, ':', v
-                print ''
-            else:   # export is 1
-                record_lst = []
-                for k, v in record.items():
-                    record_lst.append([k,v])
-
-                exportDB.insertData(tablename, record_lst)
+            handle_decrypted(decrypted, export, exportDB, tablename)
 
     if export:
         exportDB.commit()
@@ -215,6 +224,31 @@ def main():
 
     cur.close()
     con.close()
+
+
+def handle_decrypted(decrypted, export, exportDB, tablename):
+    blobparse = BlobParser()
+    record = blobparse.ParseIt(decrypted, tablename, export)
+    if export is 0:
+        for k, v in record.items():
+            if k == 'Data':
+                print ' [-]', k
+                hexdump(v)
+            elif k == 'Type' and GetTableFullName(tablename) == 'Keys':
+                print ' [-]', k, ':', blobparse.GetKeyType(int(v))
+            else:
+                printable = str(v)
+                if not all(c in string.printable for c in printable):
+                    printable = repr(v)
+                print ' [-]', k, ':', printable
+        print ''
+    else:  # export is 1
+        record_lst = []
+        for k, v in record.items():
+            record_lst.append([k, v])
+
+        exportDB.insertData(tablename, record_lst)
+
 
 if __name__ == "__main__":
     main()

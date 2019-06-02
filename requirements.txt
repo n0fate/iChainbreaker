@@ -1,3 +1,5 @@
+biplist
 hexdump
+protobuf
 pycrypto
 pyasn1

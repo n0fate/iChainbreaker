@@ -123,8 +123,8 @@ SEC_CONST_DECL = {
     'priv': 'IsPrivate',
     'modi': 'IsModifiable',
     'musr': 'MUSR',     # unknown
-    'vwht': 'VWHT'      # unknown
-
+    'vwht': 'VWHT',      # unknown
+    'TamperCheck': 'TamperCheck',
 }
 
 # http://www.opensource.apple.com/source/Security/Security-55179.13/sec/Security/SecItemConstants.c
@@ -162,7 +162,7 @@ class BlobParser:
         try:
             return SEC_CONST_DECL[data]
         except KeyError:
-            return 'Unknown Value'
+            return 'Unknown field %r' % data
 
     def GetProtoFullName(self, data):
         try:
