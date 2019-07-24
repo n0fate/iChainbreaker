@@ -167,20 +167,23 @@ class Keybag():
             #if type == 'UUID':
                 #print '%s : %s'%(type, uuid.UUID(bytes=data) )
             if type == 'CLAS':
-                #print ' [-] %s : %s %d'%(type, get_class_name(int(hexlify(data), 16) ), int(hexlify(data), 16))
+                print ' [-] %s : %s %d'%(type, get_class_name(int(hexlify(data), 16) ), int(hexlify(data), 16))
                 dict['CLAS'] = int(hexlify(data), 16)
             elif type == 'WRAP':
-                #print ' [-] %s : %s'%(type, get_wrap_name(int(hexlify(data), 16) ))
+                print ' [-] %s : %s'%(type, get_wrap_name(int(hexlify(data), 16) ))
                 dict['WRAP'] = int(hexlify(data), 16)
             elif type == 'KTYP':
-                #print ' [-] %s : %s'%(type, get_key_type(int(hexlify(data), 16) ))
+                print ' [-] %s : %s'%(type, get_key_type(int(hexlify(data), 16) ))
                 dict['KTYP'] = int(hexlify(data), 16)
             elif type == 'WPKY':
                 decryptedkey = ''
                 
                 if dict['WRAP'] == 1:
-                    decryptedkey = AESdecryptCBC(data, self.devicekey)
-                    #print ' [-] Decrypted Key : %s'%hexlify(decryptedkey)
+                    if self.keybag['version'] >= 5:
+                        decryptedkey = AESdecryptCBC(data, self.devicekey, key_store_wrap_iv)
+                    else:
+                        decryptedkey = AESdecryptCBC(data, self.devicekey)
+                    print ' [-] Decrypted Key : %s'%hexlify(decryptedkey)
                 elif dict['WRAP'] == 3:
                     if self.keybag['version'] >= 5:
                         data = AESdecryptCBC(data[:32], self.devicekey, key_store_wrap_iv) + data[32:40]
@@ -195,7 +198,7 @@ class Keybag():
                         decryptedkey = unwrapped
                     else:
                         decryptedkey = AESdecryptCBC(unwrapped, self.devicekey)
-                        #print ' [-] Decrypted Key : %s'%hexlify(decryptedkey)
+                    print ' [-] Decrypted Key : %s'%hexlify(decryptedkey)
 
                 self.keyring[dict['CLAS']] = decryptedkey  # Key
 

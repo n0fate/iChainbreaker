@@ -15,7 +15,7 @@ from hexdump import hexdump
 from exportDB import ExporySQLiteDB
 
 from crypto.aeswrap import AESUnwrap
-from crypto.gcm import gcm_decrypt
+#from crypto.gcm import gcm_decrypt
 from crypto.aes import AESdecryptCBC
 from ctypes import *
 
@@ -170,9 +170,6 @@ def main():
             if encblobheader.version == 7:
                 item = ItemV7(data)
 
-                if item.keyclass == 11:
-                    continue
-
                 key = keybag.GetKeybyClass(item.keyclass)
                 decrypted = item.decrypt_secret_data(key)
 
@@ -185,8 +182,14 @@ def main():
 
                 if export is 0:
                     print '[+] DECRYPTED METADATA'
+                    handle_decrypted(metadata, export, tablename)
+                    print '[+] DECRYPTED SECRET INFO'
+                    handle_decrypted(decrypted, export, tablename)
 
-                handle_decrypted(metadata, export, exportDB, tablename)
+                elif export is 1:
+                    blobparse = BlobParser()
+                    record = blobparse.ParseIt(metadata, tablename, export)
+                    record.update(blobparse.ParseIt(decrypted, tablename, export))
 
             else:
                 encblobheader.clas &= 0x0F
@@ -207,16 +210,24 @@ def main():
 
                 unwrappedkey = AESUnwrap(key, wrappedkey)
 
-                decrypted = gcm_decrypt(unwrappedkey, gcmIV, encrypted_data, data[:sizeof(_EncryptedBlobHeader)], auth_tag)
+                gcm = AES.new(unwrappedkey, AES.MODE_GCM, gcmIV)
+                decrypted = gcm.decrypt_and_verify(encrypted_data, auth_tag)
 
-            if len(decrypted) is 0:
-                #print(" [-] Decryption Process Failed. Invalid Key or Data is corrupted.")
-                continue
+                #decrypted = gcm_decrypt(unwrappedkey, gcmIV, encrypted_data, data[:sizeof(_EncryptedBlobHeader)], auth_tag)
+
+                if len(decrypted) is 0:
+                    #print(" [-] Decryption Process Failed. Invalid Key or Data is corrupted.")
+                    continue
+                
+                if export is 0:
+                    print '[+] DECRYPTED INFO'
+
+                handle_decrypted(decrypted)
+                blobparse = BlobParser()
+                record = blobparse.ParseIt(decrypted, tablename, export)
             
-            if export is 0:
-                print '[+] DECRYPTED INFO'
-
-            handle_decrypted(decrypted, export, exportDB, tablename)
+            if export is 1:
+                export_Database(record, export, exportDB, tablename)
 
     if export:
         exportDB.commit()
@@ -226,29 +237,30 @@ def main():
     con.close()
 
 
-def handle_decrypted(decrypted, export, exportDB, tablename):
+def handle_decrypted(decrypted, export, tablename):
     blobparse = BlobParser()
     record = blobparse.ParseIt(decrypted, tablename, export)
-    if export is 0:
-        for k, v in record.items():
-            if k == 'Data':
-                print ' [-]', k
-                hexdump(v)
-            elif k == 'Type' and GetTableFullName(tablename) == 'Keys':
-                print ' [-]', k, ':', blobparse.GetKeyType(int(v))
-            else:
-                printable = str(v)
-                if not all(c in string.printable for c in printable):
-                    printable = repr(v)
-                print ' [-]', k, ':', printable
-        print ''
-    else:  # export is 1
-        record_lst = []
-        for k, v in record.items():
-            record_lst.append([k, v])
+    for k, v in record.items():
+        if k == 'Data':
+            print u' [-]', k
+            hexdump(v)
+        elif k == 'Type' and GetTableFullName(tablename) == 'Keys':
+            print u' [-]', k, ':', blobparse.GetKeyType(int(v))
+        else:
+            printable = str(v)
+            if not all(c in string.printable for c in printable):
+                printable = repr(v)
+            print u' [-]', k, ':', printable
+    print ''
 
+def export_Database(record, export, exportDB, tablename):
+    record_lst = []
+    for k, v in record.items():
+        if k != 'SecAccessControl':
+            if k != 'TamperCheck':
+                record_lst.append([k, v])
+    if len(record_lst) != 0:
         exportDB.insertData(tablename, record_lst)
-
 
 if __name__ == "__main__":
     main()

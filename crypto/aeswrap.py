@@ -26,7 +26,7 @@ def AESUnwrap(kek, wrapped):
         for i in reversed(xrange(1,n+1)):
             todec = pack64bit(A ^ (n*j+i))
             todec += pack64bit(R[i])
-            B = AES.new(kek).decrypt(todec)
+            B = AES.new(kek, AES.MODE_CBC, chr(0)*16).decrypt(todec)
             A = unpack64bit(B[:8])
             R[i] = unpack64bit(B[8:])
     
@@ -46,7 +46,7 @@ def AESwrap(kek, data):
     
     for j in xrange(0,6):
         for i in xrange(1,n+1):
-            B = AES.new(kek).encrypt(pack64bit(A) + pack64bit(R[i]))
+            B = AES.new(kek, AES.MODE_CBC, chr(0)*16).encrypt(pack64bit(A) + pack64bit(R[i]))
             A = unpack64bit(B[:8]) ^ (n*j+i)
             R[i] = unpack64bit(B[8:])
     

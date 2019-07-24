@@ -66,7 +66,7 @@ def gctr(k, icb, plaintext):
     return y
 
 def gcm_decrypt(k, iv, encrypted, auth_data, tag):
-    aes = AES.new(k)
+    aes = AES.new(k, AES.MODE_GCM)
     h = aes.encrypt(chr(0) * aes.block_size)
 
     if len(iv) == 12:
@@ -86,7 +86,7 @@ def gcm_decrypt(k, iv, encrypted, auth_data, tag):
         return decrypted
 
 def gcm_encrypt(k, iv, plaintext, auth_data):
-    aes = AES.new(k)
+    aes = AES.new(k, AES.MODE_GCM)
     h = aes.encrypt(chr(0) * aes.block_size)
 
     if len(iv) == 12:

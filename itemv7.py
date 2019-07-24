@@ -3,7 +3,8 @@ import struct
 from biplist import readPlistFromString
 
 from crypto.aeswrap import AESUnwrap
-from crypto.gcm import gcm_decrypt
+from Crypto.Cipher import AES
+#from crypto.gcm import gcm_decrypt
 from itemv7_pb2 import ItemV7Protobuf
 
 
@@ -56,10 +57,13 @@ class ItemV7(object):
 
         plist = readPlistFromString(self.protobuf_item.encryptedSecretData.ciphertext)
         authenticated = ns_keyed_unarchiver(plist)
-        decrypted = gcm_decrypt(key,
-                                authenticated['SFInitializationVector'],
-                                authenticated['SFCiphertext'], '',
-                                authenticated['SFAuthenticationCode'])
+        #decrypted = gcm_decrypt(key,
+        #                        authenticated['SFInitializationVector'],
+        #                        authenticated['SFCiphertext'], '',
+        #                        authenticated['SFAuthenticationCode'])
+        
+        gcm = AES.new(key, AES.MODE_GCM, authenticated['SFInitializationVector'])
+        decrypted = gcm.decrypt_and_verify(authenticated['SFCiphertext'], authenticated['SFAuthenticationCode'])
 
         if not decrypted:
             raise ValueError("Failed to decrypt")
@@ -70,10 +74,13 @@ class ItemV7(object):
         wrapped_plist = readPlistFromString(self.protobuf_item.encryptedMetadata.wrappedKey)
         wrapped_sf_params = ns_keyed_unarchiver(wrapped_plist)
 
-        metadata_key = gcm_decrypt(metadata_class_key,
-                                wrapped_sf_params['SFInitializationVector'],
-                                wrapped_sf_params['SFCiphertext'], '',
-                                wrapped_sf_params['SFAuthenticationCode'])
+        #metadata_key = gcm_decrypt(metadata_class_key,
+        #                        wrapped_sf_params['SFInitializationVector'],
+        #                        wrapped_sf_params['SFCiphertext'], '',
+        #                        wrapped_sf_params['SFAuthenticationCode'])
+
+        gcm = AES.new(metadata_class_key, AES.MODE_GCM, wrapped_sf_params['SFInitializationVector'])
+        metadata_key = gcm.decrypt_and_verify(wrapped_sf_params['SFCiphertext'], wrapped_sf_params['SFAuthenticationCode'])
 
         if not metadata_key:
             raise ValueError("Failed to decrypt metadata key")
@@ -81,10 +88,13 @@ class ItemV7(object):
         ciphertext = ns_keyed_unarchiver(readPlistFromString(
             self.protobuf_item.encryptedMetadata.ciphertext))
 
-        metadata =  gcm_decrypt(metadata_key,
-                                ciphertext['SFInitializationVector'],
-                                ciphertext['SFCiphertext'], '',
-                                ciphertext['SFAuthenticationCode'])
+        #metadata =  gcm_decrypt(metadata_key,
+        #                        ciphertext['SFInitializationVector'],
+        #                        ciphertext['SFCiphertext'], '',
+        #                        ciphertext['SFAuthenticationCode'])
+
+        gcm = AES.new(metadata_key, AES.MODE_GCM, ciphertext['SFInitializationVector'])
+        metadata = gcm.decrypt_and_verify(ciphertext['SFCiphertext'], ciphertext['SFAuthenticationCode'])
 
         if not metadata:
             raise ValueError("Failed to decrypt metadata")

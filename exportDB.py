@@ -88,10 +88,15 @@ class ExporySQLiteDB:
 
 		sql += ')'
 
-		#print sql
+		#print sql, values
 		#print values
-		
-		self.cursor.execute(sql, values)
+		try:
+			self.cursor.execute(sql, values)
+		except sqlite3.OperationalError:
+			print sql, values
+			self.commit()
+			self.close()
+			exit()
 
 	def commit(self):
 		self.conn.commit()
