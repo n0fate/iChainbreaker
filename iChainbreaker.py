@@ -3,6 +3,7 @@ import string
 import uuid
 import argparse
 
+from getpass import getpass
 from binascii import hexlify
 import sys
 
@@ -46,7 +47,7 @@ def main():
 
     parser = argparse.ArgumentParser(description='Tool for iCloud Keychain Analysis by @n0fate')
     parser.add_argument('-p', '--path', nargs=1, help='iCloud Keychain Path(~/Library/Keychains/[UUID]/)', required=True)
-    parser.add_argument('-k', '--key', nargs=1, help='User Password', required=True)
+    parser.add_argument('-k', '--key', help='User Password (optional, will ask via stdin if not provided)', required=False)
     parser.add_argument('-x', '--exportfile', nargs=1, help='Write a decrypted contents to SQLite file (optional)', required=False)
     parser.add_argument('-v', '--version', nargs=1, help='macOS version(ex. 10.13)', required=True)
 
@@ -129,7 +130,7 @@ def main():
     else:
         print '[*] Device Key validation : Pass'
 
-    passcodekey = keybag.generatepasscodekey(args.key[0])
+    passcodekey = keybag.generatepasscodekey(args.key if args.key else getpass())
 
     print '[*] The passcode key : %s'%hexlify(passcodekey)
 
