@@ -16,6 +16,7 @@ from hexdump import hexdump
 from exportDB import ExporySQLiteDB
 
 from crypto.aeswrap import AESUnwrap
+from Crypto.Cipher import AES
 #from crypto.gcm import gcm_decrypt
 from crypto.aes import AESdecryptCBC
 from ctypes import *
@@ -45,7 +46,7 @@ def GetTableFullName(table):
 def main():
 
 
-    parser = argparse.ArgumentParser(description='Tool for iCloud Keychain Analysis by @n0fate')
+    parser = argparse.ArgumentParser(description='Tool for Local Items (iCloud) Keychain Analysis by @n0fate')
     parser.add_argument('-p', '--path', nargs=1, help='iCloud Keychain Path(~/Library/Keychains/[UUID]/)', required=True)
     parser.add_argument('-k', '--key', help='User Password (optional, will ask via stdin if not provided)', required=False)
     parser.add_argument('-x', '--exportfile', nargs=1, help='Write a decrypted contents to SQLite file (optional)', required=False)
@@ -210,6 +211,9 @@ def main():
                     continue
 
                 unwrappedkey = AESUnwrap(key, wrappedkey)
+
+                if unwrappedkey is None:
+                    continue
 
                 gcm = AES.new(unwrappedkey, AES.MODE_GCM, gcmIV)
                 decrypted = gcm.decrypt_and_verify(encrypted_data, auth_tag)
