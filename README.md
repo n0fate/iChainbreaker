@@ -1,6 +1,13 @@
 # iChainbreaker
 
-iChainbreaker is just PoC code for analyzing iCloud Keychain. This project will be merged with Chainbreaker
+iChainbreaker is just PoC code for analyzing Local Items (iCloud) Keychain. This project will be merged with Chainbreaker.
+
+## Getting started
+You need to install the latest version of Python 2.
+
+```shell
+pip install -r requirements.txt --user
+```
 
 ## How to use
 

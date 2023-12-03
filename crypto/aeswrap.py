@@ -29,11 +29,11 @@ def AESUnwrap(kek, wrapped):
             B = AES.new(kek, AES.MODE_CBC, chr(0)*16).decrypt(todec)
             A = unpack64bit(B[:8])
             R[i] = unpack64bit(B[8:])
-    
-    assert A == 0xa6a6a6a6a6a6a6a6, "AESUnwrap: integrity check FAIL, wrong kek ? %x"%A
+
     if A != 0xa6a6a6a6a6a6a6a6:
-        #print "AESUnwrap: integrity check FAIL, wrong kek ? %s"%A
-        return None    
+        print "AESUnwrap: integrity check FAIL, wrong kek ? %s" % A
+        return None
+
     res = "".join(map(pack64bit, R[1:]))
     return res
 
