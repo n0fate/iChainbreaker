@@ -2,4 +2,4 @@ biplist==1.0.3
 hexdump==3.3
 protobuf==3.17.3
 pyasn1==0.5.0
-pycryptodome==3.19.0
+pycryptodome==3.19.1
